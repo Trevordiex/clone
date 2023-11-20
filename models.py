@@ -1,84 +1,13 @@
 '''utility functions for url transforms'''
 
 import os
-import re
-import requests
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 from enum import Enum
 
 from url_parser import parse_url
 
-
-def resolve(base_url: str, link: str) -> str:
-    '''resolves a relative url into an absolute url'''
-    link = link or ''
-    if link == '/':
-        rpath = ''
-    else:
-        rpath = link.lstrip('/')
-
-    fpath = os.path.join(base_url, rpath)
-    return os.path.normpath(fpath).replace(':/', '://')
-
-
-def remove_fragment(link: str) -> str:
-    '''removes the fragment part of the url'''
-    parts = urlparse(link)
-    return urlunparse(parts._replace(fragment=''))
-
-def remove_query(link: str) -> str:
-    parts = urlparse(link)
-    return urlunparse(parts._replace(query=''))
-
-def is_file_path(link: str) -> bool:
-    '''returns True if a link is an actual file path
-    
-    i.e link string ends with a page suffix (https://.../login.php)
-    '''
-    regex = re.compile(
-        r'^(?:http|ftp)s?://' # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
-        r'localhost|' #localhost...
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
-        r'(?::\d+)?' # optional port
-        r'(?P<path>[/?]\S+)$', re.IGNORECASE)
-    
-    match = re.match(regex, link)
-    if match:
-        path = match.group('path')
-        return True if Path(path).suffix else False
-    return False
-    
-
-    
-
-def ping(url: str) -> bool:
-    '''checks if the url is online and active'''
-    r = requests.head(url)
-    return r.status_code == 200
-
-
-def validate_url(url, check_if_exist: bool = False):
-    '''checks for the validity of a url string.
-    ...
-    Note
-    ----
-    regex copied from django URLValidator
-    '''
-
-    regex = re.compile(
-        r'^(?:http|ftp)s?://' # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
-        r'localhost|' #localhost...
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
-        r'(?::\d+)?' # optional port
-        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-    
-    valid =  re.match(regex, url) is not None
-    if check_if_exist:
-        return valid and ping(url)
-    return valid
+from utils import is_file_path
 
 
 class Link:
@@ -98,10 +27,10 @@ class Link:
         RELATIVE = 2
         QUERY = 3
 
-    def __init__(self, link: str, *, link_type: LinkType = None, page_url: str = None, base_url: str=None ) -> None:
+    def __init__(self, link: str, *, page_url: str, base_url: str ) -> None:
         self.link = link
-        self.type = link_type
         self.page_url = page_url
+        self.type = Link.get_link_type(link, base_url)
         self.base_url = base_url or self.page_url
 
     def __str__(self):
@@ -111,6 +40,7 @@ class Link:
         return f'<Link: {str(self)}>'
 
     def normalize(self) -> str:
+        '''returns a link as a url (with fully qualified domain name)'''
         link = self.link
         if self.type == self.LinkType.RELATIVE:
             if is_file_path(self.page_url):
@@ -124,7 +54,8 @@ class Link:
         elif self.type == self.LinkType.QUERY:
             base_url = self.page_url
         
-        return resolve(base_url, link)
+        fpath = os.path.join(base_url, link.lstrip('/'))
+        return os.path.normpath(fpath).replace(':/', '://')
     
 
     def url_to_path(self) -> str:
@@ -155,6 +86,65 @@ class Link:
     @property
     def relative(self) -> str:
         return self.url_to_path()
+            
+    @staticmethod
+    def is_internal(link, base_url):
+        '''checks if the link points to a seperate page in the same site'''
+        # link = Link.remove_fragment(link)
+        if any([
+            not link,
+            link in ['/', '#'],
+            link.startswith('tel:'),
+            link.startswith('mailto:'),
+            'javascript:void' in link,
+            'data:image' in link, # for image links
+            ';base64' in link
+        ]):
+            return False
+        
+        if any([
+            Link.is_absolute(link, base_url),
+            Link.is_relative(link, base_url),
+            Link.is_query(link, base_url)
+        ]):
+            return True
+        return False
+    
+    @staticmethod
+    def is_absolute(link: str, base_url: str):
+        if link.startswith(base_url) or link.startswith('/'):
+            return True
+        return False
+    
+    @staticmethod
+    def is_relative(link: str, base_url: str):
+        if not (
+            link.startswith('http')
+            or link.startswith('/')
+            or link.startswith('?')
+        ):
+            return True
+        return False
+    
+    @staticmethod
+    def is_query(link: str, base_url: str):
+        if link.startswith('?'):
+            return True
+        return False
+    
+    @classmethod
+    def get_link_type(cls, link: str, base_url: str):
+        if cls.is_query(link, base_url):
+            return cls.LinkType.QUERY
+        elif cls.is_relative(link, base_url):
+            return cls.LinkType.RELATIVE
+        elif cls.is_absolute(link, base_url):
+            return cls.LinkType.ABSOLUTE
+        
+    def remove_fragment(link: str) -> str:
+        '''removes the fragment part of the url'''
+        parts = urlparse(link)
+        return urlunparse(parts._replace(fragment=''))
     
     def __eq__(self, __o: object) -> bool:
         return str(self) == str(__o)
@@ -164,3 +154,4 @@ class Link:
     
     def __hash__(self) -> int:
         return super().__hash__()
+    
