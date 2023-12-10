@@ -5,9 +5,12 @@ import sys
 import argparse
 import logging
 from pathlib import Path
+import shutil
+
+from url_parser import get_url
 
 from sites import Site, STATS
-from utils import validate_url
+from utils import validate_url, export
 
 
 logging.basicConfig(filename='export/process.log', level=logging.ERROR, filemode='w')
@@ -15,19 +18,35 @@ logger = logging.getLogger(__name__)
 
     
 def main(url, **kwargs):
-    export_dir = Path('exports')
-    export_dir.mkdir(parents=True, mode=0o777, exist_ok=True)
-    os.chdir(export_dir)
+    base_dir = os.getcwd()
+    export_dir = os.path.join(base_dir, 'exports')
+    sitename = get_url(url).domain
+    location = os.path.join(export_dir, sitename)
+
+
+    if Path(export_dir).exists():
+        shutil.rmtree(export_dir)
+    Path(export_dir).mkdir(parents=True, exist_ok=True,mode=0o777)
+    Path(location).mkdir(parents=True, mode=0o777, exist_ok=True)
+    os.chdir(location)
 
     site = Site(url, export_dir=export_dir, **kwargs)
-    zipped = site.clone()
+    site.clone()
+    os.chdir(base_dir)
 
-    print('\n' * 2)
+    print('\n\n')
     print(f'Pages Downloaded: {STATS["pages"]}')
     print(f'Static Assets Downloaded: {STATS["assets"]}')
     print(f'Errors Encountered: {STATS["errors"]}')
+    print("\n\n")
 
-    return zipped
+    print(f"Exporting site to {sitename}.zip ...")
+    shutil.make_archive(sitename, format='zip', root_dir=export_dir)
+    shutil.rmtree(location)
+    print(f"site exported successfully\n\n")
+    
+
+    # return zipped
 
 
 if __name__ == '__main__':
@@ -49,5 +68,4 @@ if __name__ == '__main__':
         sys.exit('URL failed validation')
 
     file = main(url, **params)
-    print(file)
     sys.exit(0)

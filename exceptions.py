@@ -9,6 +9,9 @@ class EmptyPageError(Exception):
 class BaseUrlRequiredError(Exception):
     message = 'This method requires a base url'
 
+class PageURLRequiredError(Exception):
+    message = 'page url is missing'
+
 class PageNotFoundError(Exception):
     message = 'URL is not a valid endpoint. It returns 404 on request'
 

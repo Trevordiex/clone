@@ -3,19 +3,18 @@
 import os
 import logging
 import requests
-import zipfile
 from pathlib import Path
 from collections import deque
 from typing import List, Mapping
 
-from url_parser import parse_url
+from url_parser import get_url
 
 from generator import Parser
 from models import Link
 from exceptions import PageNotFoundError, FileAlreadyExists, AuthenticationError
 from utils import save_file, make_relative, validate_url, make_byte
 
-logging.basicConfig(filename='export/process.log', level=logging.ERROR, filemode='w')
+logging.basicConfig(filename='process.log', level=logging.ERROR, filemode='w')
 logger = logging.getLogger(__name__)
 
 EXPORT_PATH = Path('export')
@@ -27,13 +26,14 @@ STATS = {
 }
 
 class Page:
-    def __init__(self, url: str, session = None, *, base_url='', **kwargs):
+    def __init__(self, url: Link, session, *, base_url, **kwargs):
         '''A webpage model'''
-        self.url = url
+        self.url = str(url)
+        self.link = url
         self.base_url = base_url
         self.session = session
-        self.content = self.get(url, session=session)
-        self.parser = Parser(self.content, url, base_url=self.base_url)
+        self.content = self.get(self.url, session=session)
+        self.parser = Parser(html=self.content, page_url=self.url, base_url=self.base_url)
     
     @staticmethod
     def get(url: str, session=None):
@@ -61,7 +61,8 @@ class Page:
     def download(self):
         self.transform()
         try:
-            filename = save_file(self.url, self.content)
+            path = self.link.relative
+            filename = save_file(path, self.content)
         except FileAlreadyExists:
             return False
         return filename
@@ -69,7 +70,7 @@ class Page:
     def transform(self):
         '''make all the page links relative using the transform mapping'''
         # self.transforms.update({make_byte('"' + link + '"'): make_byte('"' + l.relative + '"')})
-        make_relative()
+        # make_relative()
         pass
 
 class Site:
@@ -98,7 +99,6 @@ class Site:
             images_only: bool = False,
             include_media: bool = False,
             single_page: bool = False,
-            export_dir: Path = Path('.'),
             *args,
             **kwargs
         ) -> None:
@@ -110,22 +110,20 @@ class Site:
         self.single_page = single_page
         if user:
             self.session.auth = (user, password)
-        self.sitename = parse_url(self.base_url)['domain']
+        self.sitename = get_url(self.base_url).domain
 
-        self.export_dir = export_dir
-        self.export_location = os.path.join(export_dir, self.sitename)
-        if Path(self.export_location).exists():
-            os.rmdir(self.export_location)
-        Path(self.export_location).mkdir(parents=True, exist_ok=True,mode=0o777)
+        self.pages: Mapping[str: Page] = {}             # A mapping of already processed links to actual page content
+        self.visited_paths: List[str] = []              # A list of already visited links
+        self.site_links: List[Link] = deque()           # List of site links in a queue
 
-        self.pages: Mapping[str: Page] = {}
-        self.visited_paths = []
-        self.site_links: List[Link] = deque()
+        self.images = set()                             # All the images to download in a set
+        self.cssjs = set()                              # all the cssjs to download in a set
+        self.media = set()                              # Media links to download in a set
 
-        self.images = set()
-        self.cssjs = set()
-        self.media = set()
-        self.assets = [*self.images, *self.cssjs, *self.media]
+
+    @property
+    def assets(self) -> List[Link]:
+        return {*self.images, *self.cssjs, *self.media}
 
     def clone(self):
         '''clones the webpage from the specified url'''
@@ -133,16 +131,14 @@ class Site:
         if self.single_page:
             return Site.download_page(page=page, session=self.session, images=self.images_only, media=self.include_media)
 
-        self.browse()
+        self.browse(self.base_url)
+
         if self.images_only:
             Site.download(assets=self.images, session=self.session)
         else:
-            Site.download(assets=self.assets, pages=self.pages, session=self.session)
+            Site.download(assets=self.assets, pages=self.pages.values(), session=self.session)
 
-        filename = self.export_location + '.zip'
-        zipped = self.export(filename)
-        os.rmdir(self.export_location)
-        return zipped
+        return
 
     @staticmethod
     def download_page(page: Page, session=None, images=False, media=True, *args, **kwargs):
@@ -152,39 +148,36 @@ class Site:
             return Site.download(images)
         cssjs = page.get_cssjs()
         if media:
-            media_files = page.get_images
+            media_files = page.get_images()
         assets = [*images, *cssjs, *media_files]
         pages = [page,]
         Site.download(assets=assets, pages=pages)
 
         
     @staticmethod
-    def download(assets: List[str]=[], pages: List[Page]=[], session=None):
+    def download(assets: List[Link]=[], pages: List[Page]=[], session=None):
         for page in pages:
             page.download()
 
+        print("\n"*3, "*" * 8, "     DOWNLOADING STATIC FILES     ", "*" * 8, "\n")
         for asset in assets:
             try:
-                response = session.get(asset, allow_redirects=True, timeout=10)
+                url = str(asset)
+                response = session.get(url, allow_redirects=True, timeout=10)
+                file = response.content
+                save_file(path=asset.relative, content=file)
+            except FileAlreadyExists:
+                continue
             except Exception:
                 logger.exception('file download failed')
+                print("--", asset)
+                STATS['errors'] += 1
+                continue
             else:
-                file = response.content
-
-                path = parse_url(asset)['path'].lstrip('/')
-                if path:
-                    return save_file(path=path, content=file)
+                print("++", asset)
                 
-    def export(self, filename, *args, **kwargs):
-        with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED) as tar:
-            for root, dirs, files in os.walk(self.export_location):
-                for file in files:
-                    tar.write(
-                        os.path.join(root, file),
-                        os.path.relpath(os.path.join(root, file)),
-                        self.export_dir
-                    )
-        return filename
+                STATS['assets'] += 1
+    
 
     def browse(self, homepage: str):
         '''downloads all the static pages
@@ -192,21 +185,22 @@ class Site:
         queue all the unprocessed site links for further
         processing
         '''
+        homepage = Link(homepage, page_url=homepage, base_url=self.base_url)
         self.site_links.append(homepage)
         print('Browsing site...')
-        while len(self.site_links) and len(self.visited_paths) < MAX_PAGES:
+        while len(self.site_links) and len(self.pages) < MAX_PAGES:
             link = self.site_links.pop()
-            print(f'++ {link}')
             
             if not validate_url(str(link), check_if_exist=False):
                 logger.error(f'Badly formed URL: {str(link)}')
                 continue
-            if link in self.pages.keys():
+            if str(link) in self.pages.keys():
                 continue
 
+            print('++ {}'.format(str(link)))
             try:
                 page = Page(link, session=self.session, base_url=self.base_url)
-                self.pages[link] = page
+                self.pages[str(link)] = page
                 self.images.update(page.get_images())
                 self.cssjs.update(page.get_cssjs())
                 self.media.update(page.get_media())

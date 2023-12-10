@@ -1,0 +1,151 @@
+ERROR:sites:file download failed
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/response.py", line 443, in _error_catcher
+    yield
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/response.py", line 566, in read
+    data = self._fp_read(amt) if not fp_closed else b""
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/response.py", line 532, in _fp_read
+    return self._fp.read(amt) if amt is not None else self._fp.read()
+  File "/usr/lib/python3.8/http/client.py", line 459, in read
+    n = self.readinto(b)
+  File "/usr/lib/python3.8/http/client.py", line 503, in readinto
+    n = self.fp.readinto(b)
+  File "/usr/lib/python3.8/socket.py", line 669, in readinto
+    return self._sock.recv_into(b)
+  File "/usr/lib/python3.8/ssl.py", line 1241, in recv_into
+    return self.read(nbytes, buffer)
+  File "/usr/lib/python3.8/ssl.py", line 1099, in read
+    return self._sslobj.read(len, buffer)
+socket.timeout: The read operation timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/models.py", line 816, in generate
+    yield from self.raw.stream(chunk_size, decode_content=True)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/response.py", line 627, in stream
+    data = self.read(amt=amt, decode_content=decode_content)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/response.py", line 592, in read
+    raise IncompleteRead(self._fp_bytes_read, self.length_remaining)
+  File "/usr/lib/python3.8/contextlib.py", line 131, in __exit__
+    self.gen.throw(type, value, traceback)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/response.py", line 448, in _error_catcher
+    raise ReadTimeoutError(self._pool, None, "Read timed out.")
+urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='diexlabs.com', port=443): Read timed out.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/sites.py", line 166, in download
+    response = session.get(url, allow_redirects=True, timeout=10)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 600, in get
+    return self.request("GET", url, **kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 587, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 745, in send
+    r.content
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/models.py", line 899, in content
+    self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/models.py", line 822, in generate
+    raise ConnectionError(e)
+requests.exceptions.ConnectionError: HTTPSConnectionPool(host='diexlabs.com', port=443): Read timed out.
+ERROR:sites:file download failed
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connection.py", line 174, in _new_conn
+    conn = connection.create_connection(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/util/connection.py", line 95, in create_connection
+    raise err
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    sock.connect(sa)
+socket.timeout: timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 703, in urlopen
+    httplib_response = self._make_request(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 386, in _make_request
+    self._validate_conn(conn)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 1042, in _validate_conn
+    conn.connect()
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connection.py", line 358, in connect
+    self.sock = conn = self._new_conn()
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connection.py", line 179, in _new_conn
+    raise ConnectTimeoutError(
+urllib3.exceptions.ConnectTimeoutError: (<urllib3.connection.HTTPSConnection object at 0x7fae460169d0>, 'Connection to diexlabs.com timed out. (connect timeout=10)')
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/adapters.py", line 489, in send
+    resp = conn.urlopen(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    retries = retries.increment(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/util/retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='diexlabs.com', port=443): Max retries exceeded with url: /static/js/vendor/jquery-1.12.4.min.js (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fae460169d0>, 'Connection to diexlabs.com timed out. (connect timeout=10)'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/sites.py", line 166, in download
+    response = session.get(url, allow_redirects=True, timeout=10)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 600, in get
+    return self.request("GET", url, **kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 587, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 701, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/adapters.py", line 553, in send
+    raise ConnectTimeout(e, request=request)
+requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='diexlabs.com', port=443): Max retries exceeded with url: /static/js/vendor/jquery-1.12.4.min.js (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fae460169d0>, 'Connection to diexlabs.com timed out. (connect timeout=10)'))
+ERROR:sites:file download failed
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connection.py", line 174, in _new_conn
+    conn = connection.create_connection(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/util/connection.py", line 95, in create_connection
+    raise err
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    sock.connect(sa)
+socket.timeout: timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 703, in urlopen
+    httplib_response = self._make_request(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 386, in _make_request
+    self._validate_conn(conn)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 1042, in _validate_conn
+    conn.connect()
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connection.py", line 358, in connect
+    self.sock = conn = self._new_conn()
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connection.py", line 179, in _new_conn
+    raise ConnectTimeoutError(
+urllib3.exceptions.ConnectTimeoutError: (<urllib3.connection.HTTPSConnection object at 0x7fae45d19730>, 'Connection to diexlabs.com timed out. (connect timeout=10)')
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/adapters.py", line 489, in send
+    resp = conn.urlopen(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    retries = retries.increment(
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/urllib3/util/retry.py", line 592, in increment
+    raise MaxRetryError(_pool, url, error or ResponseError(cause))
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='diexlabs.com', port=443): Max retries exceeded with url: /static/js/slick.min.js (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fae45d19730>, 'Connection to diexlabs.com timed out. (connect timeout=10)'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/trevor/workspace/apps/clone/sites.py", line 166, in download
+    response = session.get(url, allow_redirects=True, timeout=10)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 600, in get
+    return self.request("GET", url, **kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 587, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/sessions.py", line 701, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/trevor/workspace/apps/clone/cryptos/lib/python3.8/site-packages/requests/adapters.py", line 553, in send
+    raise ConnectTimeout(e, request=request)
+requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='diexlabs.com', port=443): Max retries exceeded with url: /static/js/slick.min.js (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fae45d19730>, 'Connection to diexlabs.com timed out. (connect timeout=10)'))

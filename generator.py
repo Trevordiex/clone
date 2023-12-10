@@ -60,7 +60,7 @@ class Parser:
                 links.append(Link(
                     link=link,
                     page_url=self.page_url,
-                    base_url=self.page_url
+                    base_url=self.base_url
                 ))
         return links
     

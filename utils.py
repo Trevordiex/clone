@@ -7,9 +7,8 @@ import logging
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
-from enum import Enum
+import zipfile
 
-from url_parser import parse_url
 
 from exceptions import FileAlreadyExists
 
@@ -111,3 +110,15 @@ def save_file(path: str, content: BytesIO, overwrite: bool = False):
         with open(path, 'wb') as new:
             new.write(content)
         return path
+    
+
+def export(*, dir_name, filename, **kwargs):
+    with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED) as tar:
+        for root, dirs, files in os.walk(dir_name):
+            for file in files:
+                tar.write(
+                    os.path.join(root, file),
+                    os.path.relpath(os.path.join(root, file)),
+                    os.path.join(dir_name, '..')
+                )
+    return filename

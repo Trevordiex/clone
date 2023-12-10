@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 from enum import Enum
 
-from url_parser import parse_url
+from url_parser import get_url
 
 from utils import is_file_path
 
@@ -50,6 +50,8 @@ class Link:
                     link = '../' + link
             base_url = self.page_url
         elif self.type == self.LinkType.ABSOLUTE:
+            if self.link.startswith(self.base_url):
+                return self.link
             base_url = self.base_url
         elif self.type == self.LinkType.QUERY:
             base_url = self.page_url
@@ -62,16 +64,16 @@ class Link:
         '''converts a site page link to a file system path'''
         # for links that use query params e.g ?a=about.html
         if self.type == self.LinkType.QUERY:
-            parsed_url = parse_url(str(self))
-            query = parsed_url['query']
+            parsed_url = get_url(str(self))
+            query = parsed_url.query
             name = list(query.values())[0]
             if not Path(name).suffix in self.PAGE_SUFFIXES:
                 name = name + '.html'
-            path = os.path.join(parsed_url['path'], name)
+            path = os.path.join(parsed_url.path, name)
             
         else:
-            parsed_url = parse_url(str(self))
-            path = parsed_url['path']
+            parsed_url = get_url(str(self))
+            path = parsed_url.path
             if path is None or path == '/':
                 path = 'index.html'
             path = path.strip('/')
