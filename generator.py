@@ -1,11 +1,12 @@
 '''module for generating all the css files linked to a html page'''
 
+import re
 from bs4 import BeautifulSoup as bs4
 from io import BytesIO, TextIOWrapper
 from typing import Union, List
 
 from exceptions import InvalidInputError
-from models import Link
+from models import Link, url_pattern
 
 class Parser:
     '''A class which generates static files and links from a html page
@@ -54,15 +55,11 @@ class Parser:
         self.transforms = {}
 
     def url_to_links(self, urls: List[str]) -> List[Link]:
-        links = []
-        for link in set(urls):
-            if Link.is_internal(link, self.base_url):
-                links.append(Link(
-                    link=link,
-                    page_url=self.page_url,
-                    base_url=self.base_url
-                ))
-        return links
+        return Link.url_to_links(
+            urls=urls,
+            page_url=self.page_url,
+            base_url=self.base_url
+        )
     
     
     def get_links(self):
@@ -74,12 +71,25 @@ class Parser:
         return self.url_to_links(links)
     
     def get_cssjs(self) -> List[Link]:
-
+        '''generates the page css and js files
+        ----
+        For convenience, this will include all the images and all other static assets
+        linked inside `style` tag
+        '''
         links = self.page.find_all('link')
-        stylesheets = [ link['href'] for link in links if 'stylesheet' in link.get('rel', [])]
+        stylesheets = [ link['href'] for link in links if link.get('href', None)]
+        styles = self.page.find_all('style')
+        for style in styles:
+            links = [match[1] for match in re.findall(url_pattern, style.prettify())]
+            stylesheets.extend(links)
+
 
         scripts = self.page.find_all('script')
         scripts = [js['src'] for js in scripts if js.get('src', None)]
+        javascripts = self.page.find_all('script')
+        for javascript in javascripts:
+            links = [match[1] for match in re.findall(url_pattern, javascript.prettify())]
+            scripts.extend(links)
 
         return self.url_to_links(urls=[*stylesheets, *scripts])
     

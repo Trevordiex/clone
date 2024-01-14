@@ -5,6 +5,7 @@ import io
 
 from sites import Site, Page
 from exceptions import PageNotFoundError, AuthenticationError
+from utils import make_byte
 
 PAGE_LINK = 'https://example.com/about'
 PAGE404 = 'https://example.com/404'
@@ -55,12 +56,12 @@ class PageTestCase(TestCase):
         page = Page(PAGE_LINK, self.session, base_url='https://example.com')
         self.assertEqual(page.url, PAGE_LINK)
         self.assertEqual(page.base_url, 'https://example.com')
-        self.assertIsNotNone(page.content)
+        self.assertIsNotNone(page._content)
 
     @mock.patch('requests.Session.get', new_callable=mock_request)
     def test_get_works(self, mocked_request):
         page = self.page
-        self.assertEqual(page.content, PAGE_CONTENT)
+        self.assertEqual(page._content, PAGE_CONTENT)
         
         with self.assertRaises(PageNotFoundError):
             Page.get(PAGE404, self.session)
@@ -82,6 +83,12 @@ class PageTestCase(TestCase):
         links = self.page.get_links()
         self.assertIsInstance(links, list)
         self.assertEqual(len(links), 5)
+
+    def test_content_is_transform(self):
+        content = self.page.content
+        for link in self.page.get_links():
+            self.assertIn(make_byte(link.relative), content)
+
 
 
 

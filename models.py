@@ -1,14 +1,30 @@
 '''utility functions for url transforms'''
 
 import os
+import re
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 from enum import Enum
+from typing import List
 
 from url_parser import get_url
 
 from utils import is_file_path
+from exceptions import InvalidInputError
 
+
+url_pattern = re.compile(
+    r'url\((\'|\")?'
+    r'(?P<url>\S+?)' # matches the url
+    r'\1?\)'
+)
+
+def find_urls(page: str) -> List[str]:
+    if not isinstance(page, str):
+        raise InvalidInputError('page must be a string')
+    
+    links = [match[1] for match in re.findall(url_pattern, page)]
+    return links
 
 class Link:
     '''A model of HTML link
@@ -30,8 +46,9 @@ class Link:
     def __init__(self, link: str, *, page_url: str, base_url: str ) -> None:
         self.link = link
         self.page_url = page_url
-        self.type = Link.get_link_type(link, base_url)
+        self.type = Link.get_link_type(self.link, base_url)
         self.base_url = base_url or self.page_url
+        
 
     def __str__(self):
         return self.normalize()
@@ -77,7 +94,7 @@ class Link:
             if path is None or path == '/':
                 path = 'index.html'
             path = path.strip('/')
-            path = path if Path(path).suffix in self.PAGE_SUFFIXES else path + '.html'
+            path = path if Path(path).suffix else path + '.html'
         
         # change page file suffix to html
         suffix = Path(path).suffix
@@ -88,6 +105,16 @@ class Link:
     @property
     def relative(self) -> str:
         return self.url_to_path()
+    
+    @property
+    def is_css(self):
+        '''Returns `True` if filename ends with `.css`'''
+        return Path(self.relative).suffix == '.css'
+    
+    @property
+    def is_js(self):
+        '''Returns `True` if filename ends with `.js`'''
+        return Path(self.relative).suffix == '.js'
             
     @staticmethod
     def is_internal(link, base_url):
@@ -96,6 +123,7 @@ class Link:
         if any([
             not link,
             link in ['/', '#'],
+            link.startswith('//'),      # protocol relative urls
             link.startswith('tel:'),
             link.startswith('mailto:'),
             'javascript:void' in link,
@@ -147,6 +175,20 @@ class Link:
         '''removes the fragment part of the url'''
         parts = urlparse(link)
         return urlunparse(parts._replace(fragment=''))
+    
+    @classmethod
+    def url_to_links(cls, urls: List[str], page_url: str, base_url: str) -> List:
+        links = []
+        for link in set(urls):
+            link = '#'.join(link.split('#')[:2])
+
+            if cls.is_internal(link, base_url):
+                links.append(cls(
+                    link=link,
+                    page_url=page_url,
+                    base_url=base_url
+                ))
+        return links
     
     def __eq__(self, __o: object) -> bool:
         return str(self) == str(__o)

@@ -52,8 +52,16 @@ def main(url, **kwargs):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pyclone', description='Clones a website given the url')
     parser.add_argument('url', help='The link to the website you want to clone')
+    # parser.add_argument('--filter',
+    #     required=False,
+    #     type=str,
+    #     default='all',
+    #     choices=['all', 'images', 'static', 'cssjs']
+    #     help='Download only static files'
+    # )
     parser.add_argument('--user', required=False, help='The username or password to use for authentication')
     parser.add_argument('--password', required=False, help='Password for basic authentication')
+    parser.add_argument('--images-only', required=False, default=False, help='Download images only')
 
     arguments = parser.parse_args()
     url = arguments.url

@@ -10,7 +10,7 @@ from typing import List, Mapping
 from url_parser import get_url
 
 from generator import Parser
-from models import Link
+from models import Link, find_urls
 from exceptions import PageNotFoundError, FileAlreadyExists, AuthenticationError
 from utils import save_file, make_relative, validate_url, make_byte
 
@@ -32,8 +32,9 @@ class Page:
         self.link = url
         self.base_url = base_url
         self.session = session
-        self.content = self.get(self.url, session=session)
-        self.parser = Parser(html=self.content, page_url=self.url, base_url=self.base_url)
+        self._content = self.get(self.url, session=session)
+        self.parser = Parser(html=self._content, page_url=self.url, base_url=self.base_url)
+        self.transforms = {}
     
     @staticmethod
     def get(url: str, session=None):
@@ -59,19 +60,27 @@ class Page:
         return self.parser.get_cssjs()
 
     def download(self):
-        self.transform()
         try:
             path = self.link.relative
             filename = save_file(path, self.content)
         except FileAlreadyExists:
             return False
+        except TypeError:
+            print(f'TypeError: File could not be saved <{path}>', self.content)
+            return False
         return filename
 
-    def transform(self):
-        '''make all the page links relative using the transform mapping'''
-        # self.transforms.update({make_byte('"' + link + '"'): make_byte('"' + l.relative + '"')})
-        # make_relative()
-        pass
+    @property
+    def content(self):
+        '''make all the page links relative'''
+    
+        links = [*self.get_links(), *self.get_cssjs(), *self.get_images(), *self.get_media()]
+        rcontent = self._content[:]
+        print(type(rcontent))
+        for link in links:
+            rcontent = rcontent.replace(make_byte(link.link), make_byte(link.relative))
+        return rcontent
+
 
 class Site:
     '''A class that crawls a website and create a static equivalent
@@ -119,6 +128,8 @@ class Site:
         self.images = set()                             # All the images to download in a set
         self.cssjs = set()                              # all the cssjs to download in a set
         self.media = set()                              # Media links to download in a set
+        self.extra_links = set()                        # Links parsed from other assets
+        self.visited_links: List[str] = []              # A list of downloaded assets
 
 
     @property
@@ -129,42 +140,48 @@ class Site:
         '''clones the webpage from the specified url'''
         page = Page(self.base_url, session=self.session, base_url=self.base_url)
         if self.single_page:
-            return Site.download_page(page=page, session=self.session, images=self.images_only, media=self.include_media)
+            return self.download_page(page=page, session=self.session, images=self.images_only, media=self.include_media)
 
         self.browse(self.base_url)
 
         if self.images_only:
-            Site.download(assets=self.images, session=self.session)
+            self.download(assets=self.images, session=self.session)
         else:
-            Site.download(assets=self.assets, pages=self.pages.values(), session=self.session)
+            self.download(assets=self.assets, pages=self.pages.values(), session=self.session)
 
         return
 
-    @staticmethod
-    def download_page(page: Page, session=None, images=False, media=True, *args, **kwargs):
+    def download_page(self, page: Page, session=None, images=False, media=True, *args, **kwargs):
         '''downloads the asset pointed to by the link'''
         images = page.get_images()
         if images:
-            return Site.download(images)
+            return self.download(images)
         cssjs = page.get_cssjs()
         if media:
             media_files = page.get_images()
         assets = [*images, *cssjs, *media_files]
         pages = [page,]
-        Site.download(assets=assets, pages=pages)
+        self.download(assets=assets, pages=pages)
 
         
-    @staticmethod
-    def download(assets: List[Link]=[], pages: List[Page]=[], session=None):
+    def download(self, assets: List[Link]=[], pages: List[Page]=[], session=None, recursive=False):
         for page in pages:
             page.download()
 
         print("\n"*3, "*" * 8, "     DOWNLOADING STATIC FILES     ", "*" * 8, "\n")
+        extra_links = set()
         for asset in assets:
+            if str(asset) in self.visited_links:
+                continue
+
             try:
                 url = str(asset)
                 response = session.get(url, allow_redirects=True, timeout=10)
                 file = response.content
+
+                if recursive and (asset.is_css or asset.is_js):
+                    internal_links = find_urls(str(file))
+                    extra_links.update(internal_links)
                 save_file(path=asset.relative, content=file)
             except FileAlreadyExists:
                 continue
@@ -174,9 +191,12 @@ class Site:
                 STATS['errors'] += 1
                 continue
             else:
+                self.visited_links.append(url)
                 print("++", asset)
                 
                 STATS['assets'] += 1
+        if recursive:
+            self.download(assets=extra_links, session=session, recursive=False)
     
 
     def browse(self, homepage: str):
